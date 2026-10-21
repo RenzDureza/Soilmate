@@ -32,4 +32,4 @@ Setup/Instructions
 
 ## Circuit Diagram
 
-_to be update_
+![Circuit Diagram](circuit_image.png)
