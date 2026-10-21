@@ -1,42 +1,71 @@
-// Libraries
+#define BLYNK_PRINT Serial
+#include <BlynkSimpleEsp8266.h>
 #include <DHT.h>
-#include <LiquidCrystal_I2C.h>
+#include <ESP8266WiFi.h>
 
-#define DHTPIN A0
+char auth[] = "LnuSxlg9mZMWkh5PyywXn9VFTox69qKa";
+char ssid[] = "Julliana";
+char pass[] = "lumpiaseller";
+
+#define sensor A0
+#define waterPump D3
+#define DHTPIN 4
 #define DHTTYPE DHT11
+
 DHT dht(DHTPIN, DHTTYPE);
 
-LiquidCrystal_I2C lcd (0x27, 16, 2);
+BlynkTimer timer;
+
+bool Relay = 0;
 
 void setup() {
+	Serial.begin(9600);
+	Serial.begin(115200);
 
-  lcd.init();
-  lcd.backlight();
+	pinMode(waterPump, OUTPUT);
+	digitalWrite(waterPump, HIGH);
 
-  dht.begin();
+	dht.begin();
 
+	Blynk.begin(auth, ssid, pass, "blynk.cloud", 80);
 
+	timer.setInterval(100L, soilMoistureSensor);
+	timer.setInterval(100L, sendSensor);
+}
 
+BLYNK_WRITE(V1) {
+	Relay = param.asInt();
+	if (Relay == 1) {
+		digitalWrite(waterPump, LOW);
+	} else {
+		digitalWrite(waterPump, HIGH);
+	}
+}
+
+void soilMoistureSensor() {
+	int value = analogRead(sensor);
+	value = map(value, 0, 1024, 0, 100);
+	value = (value - 100) * -1;
+	Blynk.virtualWrite(V0, value);
+}
+
+void sendSensor() {
+	float h = dht.readHumidity();
+	float t = dht.readTemperature();
+	if (isnan(h) || isnan(t)) {
+		Serial.println("Failed to read from DHT sensor!");
+		return;
+	}
+
+	Blynk.virtualWrite(V2, t);
+	Blynk.virtualWrite(V3, h);
+	Serial.print("Temperature: ");
+	Serial.print(t);
+	Serial.print("    Humidity: ");
+	Serial.println(h);
 }
 
 void loop() {
-
-  delay(100);
-
-  float h = dht.readHumidity();
-  float t = dht.readTemperature();
-
-  lcd.setCursor(0, 0);
-  lcd.print("Humidity: ");
-  lcd.print(h);
-  lcd.setCursor(15, 0);
-  lcd.print("%");
-
-  lcd.setCursor(0, 1);
-  lcd.print("Temp: ");
-  lcd.print(t);
-  lcd.setCursor(12, 1);
-  lcd.print("C");
-
-
+	Blynk.run();
+	timer.run();
 }
